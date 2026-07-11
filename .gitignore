@@ -1,5 +1,5 @@
 # Ignore secret keys
-config.js
+
 
 # Dependencies (if any added later)
 node_modules/

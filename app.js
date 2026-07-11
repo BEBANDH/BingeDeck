@@ -117,6 +117,17 @@ const bulkProgressContainer = document.getElementById('bulk-progress-container')
 const bulkProgressText = document.getElementById('bulk-progress-text');
 const bulkProgressFill = document.getElementById('bulk-progress-fill');
 
+function showError(msg) {
+    if (!errorMsg) return;
+    errorMsg.textContent = msg;
+    errorMsg.classList.remove('hidden');
+    setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+}
+
+function hideError() {
+    if (errorMsg) errorMsg.classList.add('hidden');
+}
+
 // === STATE ===
 let watchlist = JSON.parse(localStorage.getItem('cinevault_data')) || [];
 let currentFilter = 'all'; // 'all', 'movie', 'series', 'anime'
