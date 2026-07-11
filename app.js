@@ -165,6 +165,23 @@ document.addEventListener('click', (e) => {
     if (!form.contains(e.target)) autocompleteDropdown.classList.add('hidden');
 });
 
+const sidebarElement = document.querySelector('.sidebar');
+if (sidebarElement && typeInput) {
+    sidebarElement.addEventListener('mouseleave', () => {
+        if (!sidebarElement.classList.contains('searching')) {
+            typeInput.blur();
+        }
+    });
+}
+
+// Add searching class to keep sidebar expanded during search
+titleInput.addEventListener('focus', () => sidebarElement.classList.add('searching'));
+titleInput.addEventListener('blur', () => {
+    setTimeout(() => sidebarElement.classList.remove('searching'), 200);
+});
+typeInput.addEventListener('focus', () => sidebarElement.classList.add('searching'));
+typeInput.addEventListener('blur', () => sidebarElement.classList.remove('searching'));
+
 form.addEventListener('submit', (e) => {
     e.preventDefault();
     const query = titleInput.value.trim();
@@ -172,13 +189,6 @@ form.addEventListener('submit', (e) => {
         performSearch(query, typeInput.value);
     }
 });
-
-const sidebarElement = document.querySelector('.sidebar');
-if (sidebarElement && typeInput) {
-    sidebarElement.addEventListener('mouseleave', () => {
-        typeInput.blur();
-    });
-}
 
 internalSearchInput.addEventListener('input', renderRows);
 
@@ -251,7 +261,7 @@ async function performSearch(query, type) {
             if (data.data) {
                 results = data.data.map(item => ({
                     Title: item.title_english || item.title,
-                    Year: item.year || (item.aired ? item.aired.prop.from.year : 'N/A'),
+                    Year: item.year || (item.aired && item.aired.prop && item.aired.prop.from ? item.aired.prop.from.year : 'N/A'),
                     Poster: item.images?.jpg?.image_url || 'N/A',
                     imdbID: null
                 }));
