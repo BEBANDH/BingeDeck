@@ -768,3 +768,214 @@ select.sort-dropdown option {
 .confirm-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
 .btn-cancel { background: #333; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600; }
 .btn-confirm-delete { background: var(--error); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600; }
+
+/* Sidebar Layout */
+.layout.with-sidebar {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 68px;
+    height: 100vh;
+    background: linear-gradient(180deg, rgba(20,20,20,0.85) 0%, rgba(30,30,30,0.7) 100%);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0;
+    z-index: 1000;
+    transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    overflow-x: hidden;
+    white-space: nowrap;
+}
+
+.sidebar:hover {
+    width: 260px;
+    box-shadow: 5px 0 20px rgba(0,0,0,0.5);
+}
+
+.sidebar-label {
+    opacity: 0;
+    transition: opacity 0.3s, margin 0.3s;
+    margin-left: -20px;
+}
+.sidebar:hover .sidebar-label {
+    opacity: 1;
+    margin-left: 10px;
+}
+
+.sidebar-brand {
+    padding: 0 20px;
+    margin-bottom: 2rem;
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+.sidebar-brand h2 {
+    color: var(--accent);
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+}
+
+.sidebar-section, .sidebar-nav, .sidebar-profile {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 12px;
+    margin-bottom: 2rem;
+}
+.sidebar-spacer {
+    flex-grow: 1;
+}
+
+.sidebar-btn {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s, color 0.2s;
+}
+.sidebar-btn i {
+    font-size: 1.4rem;
+    min-width: 24px;
+    text-align: center;
+}
+.sidebar-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+}
+
+/* Sidebar Search */
+.sidebar-search {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 0 10px;
+    position: relative;
+}
+.search-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    position: absolute;
+    left: 48px;
+    top: 0;
+}
+.sidebar:hover .search-inputs {
+    opacity: 1;
+    pointer-events: auto;
+    position: relative;
+    left: 0;
+}
+.sidebar-search input {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    width: 100%;
+}
+.sidebar-dropdown {
+    background: rgba(0,0,0,0.8);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 8px;
+    border-radius: 4px;
+    width: 100%;
+    outline: none;
+}
+#btn-submit-add {
+    background: var(--accent);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+#btn-submit-add:hover {
+    background: var(--accent-hover);
+}
+.sidebar:hover #btn-submit-add {
+    width: 100%;
+    border-radius: 4px;
+    height: 36px;
+}
+
+/* Main Wrapper */
+.main-wrapper {
+    flex-grow: 1;
+    margin-left: 68px;
+    transition: margin-left 0.3s;
+    width: calc(100% - 68px);
+}
+
+/* Internal Search */
+.internal-search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 6px 16px;
+    flex-grow: 0.5;
+    transition: background 0.2s;
+}
+.internal-search-container:focus-within {
+    background: rgba(255,255,255,0.1);
+    border-color: var(--accent);
+}
+.internal-search-container i {
+    color: var(--text-secondary);
+    margin-right: 8px;
+}
+.internal-search-container input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: inherit;
+    width: 100%;
+    outline: none;
+}
+
+/* Profile in Sidebar */
+.profile-avatar-container {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    position: relative;
+    cursor: pointer;
+}
+.profile-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.profile-menu {
+    top: auto;
+    bottom: 50px;
+    left: 60px;
+    right: auto;
+}

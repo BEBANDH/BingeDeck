@@ -43,6 +43,7 @@ const filterUnwatchedToggle = document.getElementById('filter-unwatched-toggle')
 const exportExcelBtn = document.getElementById('export-excel-btn');
 const genreFilter = document.getElementById('genre-filter');
 const mainHeader = document.getElementById('main-header');
+const internalSearchInput = document.getElementById('internal-search');
 
 // Profile Elements
 const btnSignin = document.getElementById('btn-signin');
@@ -171,6 +172,8 @@ form.addEventListener('submit', (e) => {
         performSearch(query, typeInput.value);
     }
 });
+
+internalSearchInput.addEventListener('input', renderRows);
 
 exportExcelBtn.addEventListener('click', () => {
     if (watchlist.length === 0) {
@@ -586,6 +589,11 @@ function renderRows() {
 
     let baseList = currentFilter === 'all' ? watchlist : watchlist.filter(item => item.type === currentFilter);
     if (showUnwatchedOnly) baseList = baseList.filter(item => item.isUnwatched !== false);
+    
+    const internalQuery = internalSearchInput.value.toLowerCase().trim();
+    if (internalQuery) {
+        baseList = baseList.filter(item => item.title.toLowerCase().includes(internalQuery));
+    }
 
     // Extract unique genres for dropdown
     const uniqueGenres = new Set();
@@ -792,11 +800,8 @@ function openModal(item) {
         progressTracker.classList.add('hidden');
     }
 
-    if ((item.type === 'series' || item.type === 'anime') && item.imdbID && item.totalSeasons > 0) {
-        modalSeasonsContainer.classList.remove('hidden');
-        modalSeasonsList.innerHTML = '<li class="loading-seasons"><i class="ph-bold ph-spinner ph-spin"></i> Fetching seasons...</li>';
-        fetchSeasonBreakdown(item.imdbID, item.totalSeasons);
-    }
+    // Season fetching removed to ensure 0 API calls on modal open.
+    // The total episodes/progress are already cached in Firebase.
 }
 
 async function fetchSeasonBreakdown(imdbID, totalSeasons) {
