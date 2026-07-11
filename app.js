@@ -257,6 +257,12 @@ async function performSearch(query, type) {
 
         if (type === 'anime') {
             const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=5`);
+            if (!res.ok) {
+                showError(`Anime Search Error: Jikan API is temporarily unavailable (${res.status}). Please try again later.`);
+                const submitBtn = document.getElementById('btn-submit-add');
+                if(submitBtn) { submitBtn.innerHTML = '<i class="ph-bold ph-plus"></i>'; submitBtn.disabled = false; }
+                return;
+            }
             const data = await res.json();
             if (data.data) {
                 results = data.data.map(item => ({
@@ -271,6 +277,10 @@ async function performSearch(query, type) {
             const typeStr = queryType ? `&type=${queryType}` : '';
             const url = `https://www.omdbapi.com/?s=${encodeURIComponent(query)}${typeStr}&apikey=${OMDB_API_KEY}`;
             const res = await fetch(url);
+            if (!res.ok) {
+                showError(`Search Error: OMDB API is temporarily unavailable (${res.status}).`);
+                return;
+            }
             const data = await res.json();
             if (data.Response === 'True' && data.Search) {
                 results = data.Search;
