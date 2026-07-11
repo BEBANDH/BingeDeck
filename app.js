@@ -366,7 +366,10 @@ btnStartBulk.addEventListener('click', async () => {
     let addedCount = 0; let failedTitles = [];
 
     for (let i = 0; i < lines.length; i++) {
-        const title = lines[i];
+        // Remove leading hyphens, bullets, or numbers (e.g. "- peaky blinders")
+        const title = lines[i].replace(/^[-*•0-9.\s]+/, '').trim();
+        if (!title) continue;
+        
         bulkProgressText.textContent = `Processing ${i + 1} of ${lines.length}: ${title}...`;
         bulkProgressFill.style.width = `${((i + 1) / lines.length) * 100}%`;
 
