@@ -156,18 +156,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // === EVENT LISTENERS ===
-let debounceTimer;
 
-titleInput.addEventListener('input', () => {
-    clearTimeout(debounceTimer);
-    const query = titleInput.value.trim();
-    if (query.length < 2) { autocompleteDropdown.classList.add('hidden'); return; }
-    debounceTimer = setTimeout(() => { performSearch(query, typeInput.value); }, 300);
-});
-
-typeInput.addEventListener('change', () => {
-    if (titleInput.value.trim().length >= 2) performSearch(titleInput.value.trim(), typeInput.value);
-});
 
 document.addEventListener('click', (e) => {
     if (!form.contains(e.target)) autocompleteDropdown.classList.add('hidden');
@@ -216,82 +205,7 @@ exportExcelBtn.addEventListener('click', () => {
     document.body.removeChild(link);
 });
 
-const apiCache = {};
 
-async function performSearch(query, type) {
-    if (typeof TMDB_API_KEY === 'undefined' || TMDB_API_KEY === 'YOUR_TMDB_API_KEY_HERE') return;
-    const cacheKey = `${query}_${type}`;
-    if (apiCache[cacheKey]) {
-        renderAutocomplete(apiCache[cacheKey], type);
-        return;
-    }
-
-    try {
-        let results = [];
-        if (type === 'anime') {
-            const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=5`);
-            const data = await res.json();
-            if (data.data) {
-                results = data.data.map(item => ({
-                    Title: item.title_english || item.title,
-                    Year: item.year || (item.aired && item.aired.prop.from.year ? item.aired.prop.from.year : 'N/A'),
-                    Poster: item.images?.jpg?.image_url || 'N/A',
-                    exactId: item.mal_id,
-                    actualType: 'anime'
-                }));
-            }
-        } else {
-            let endpoint = 'multi';
-            if (type === 'movie') endpoint = 'movie';
-            if (type === 'series') endpoint = 'tv';
-            
-            const url = `https://api.themoviedb.org/3/search/${endpoint}?query=${encodeURIComponent(query)}&api_key=${TMDB_API_KEY}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            
-            if (data.results) {
-                results = data.results.slice(0, 5).map(item => ({
-                    Title: item.title || item.name,
-                    Year: (item.release_date || item.first_air_date || '').split('-')[0] || 'N/A',
-                    Poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'N/A',
-                    exactId: item.id,
-                    actualType: item.media_type === 'tv' || type === 'series' ? 'series' : 'movie'
-                }));
-            }
-        }
-        if (results.length > 0) {
-            apiCache[cacheKey] = results;
-            renderAutocomplete(results, type);
-        } else {
-            autocompleteDropdown.classList.add('hidden');
-        }
-    } catch (err) {
-        autocompleteDropdown.classList.add('hidden');
-    }
-}
-
-function renderAutocomplete(results, type) {
-    autocompleteDropdown.innerHTML = '';
-    results.slice(0, 5).forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'autocomplete-item';
-        const posterSrc = item.Poster !== 'N/A' ? item.Poster : 'https://via.placeholder.com/40x60/222222/6b7280?text=NA';
-        div.innerHTML = `
-            <img src="${posterSrc}" alt="Poster" class="autocomplete-poster">
-            <div class="autocomplete-item-info">
-                <span class="autocomplete-item-title">${item.Title}</span>
-                <span class="autocomplete-item-year">${item.Year}</span>
-            </div>
-        `;
-        div.addEventListener('click', () => {
-            titleInput.value = item.Title;
-            autocompleteDropdown.classList.add('hidden');
-            addWatchlistItem(item.Title, type, item.exactId);
-        });
-        autocompleteDropdown.appendChild(div);
-    });
-    autocompleteDropdown.classList.remove('hidden');
-}
 
 async function addWatchlistItem(title, type, exactImdbId = null) {
     hideError();
@@ -402,6 +316,7 @@ btnStartBulk.addEventListener('click', async () => {
             });
             addedCount++;
         } catch (err) { failedTitles.push(title); }
+        await new Promise(r => setTimeout(r, 350));
     }
 
     saveData(); renderRows();
@@ -769,14 +684,10 @@ function openModal(item) {
         progressTracker.classList.add('hidden');
     }
 
-    if (item.seasonsData && item.seasonsData.length > 0) {
+    if ((item.type === 'series' || item.type === 'anime') && item.imdbID && item.totalSeasons > 0) {
         modalSeasonsContainer.classList.remove('hidden');
-        modalSeasonsList.innerHTML = '';
-        item.seasonsData.forEach(s => {
-            const li = document.createElement('li');
-            li.innerHTML = `<strong>Season ${s.season}:</strong> ${s.episodes} Episodes`;
-            modalSeasonsList.appendChild(li);
-        });
+        modalSeasonsList.innerHTML = '<li class="loading-seasons"><i class="ph-bold ph-spinner ph-spin"></i> Fetching seasons...</li>';
+        fetchSeasonBreakdown(item.imdbID, item.totalSeasons);
     } else {
         modalSeasonsContainer.classList.add('hidden');
     }
@@ -796,14 +707,14 @@ btnConfirmDelete.addEventListener('click', () => {
 });
 
 // API Helpers
-async function fetchMovieMetadata(title, type, exactId = null) {
-    if (typeof TMDB_API_KEY === 'undefined' || TMDB_API_KEY === 'YOUR_TMDB_API_KEY_HERE') throw new Error('API Key missing.');
+async function fetchMovieMetadata(title, type) {
+    if (typeof OMDB_API_KEY === 'undefined' || OMDB_API_KEY === 'YOUR_API_KEY_HERE') throw new Error('API Key missing.');
     
     if (type === 'anime') {
-        const url = exactId ? `https://api.jikan.moe/v4/anime/${exactId}` : `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`;
+        const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`;
         const res = await fetch(url);
         const data = await res.json();
-        const item = exactId ? data.data : data.data?.[0];
+        const item = data.data?.[0];
         if (!item) throw new Error('Not found');
         return {
             title: item.title_english || item.title,
@@ -823,56 +734,79 @@ async function fetchMovieMetadata(title, type, exactId = null) {
         };
     }
 
-    let endpoint = type === 'series' ? 'tv' : 'movie';
-    let searchEndpoint = type === 'series' ? 'tv' : (type === 'mixed' ? 'multi' : 'movie');
-    let id = exactId;
-    
-    if (!id) {
-        const searchUrl = `https://api.themoviedb.org/3/search/${searchEndpoint}?query=${encodeURIComponent(title)}&api_key=${TMDB_API_KEY}`;
-        const searchRes = await (await fetch(searchUrl)).json();
-        if (!searchRes.results || searchRes.results.length === 0) throw new Error('Not found');
-        
-        // Find the first valid movie or tv show (ignore people)
-        const validResult = searchRes.results.find(r => r.media_type === 'movie' || r.media_type === 'tv') || searchRes.results[0];
-        
-        id = validResult.id;
-        endpoint = validResult.media_type === 'tv' || type === 'series' ? 'tv' : 'movie';
+    const cacheKey = encodeURIComponent(title.toLowerCase() + '_' + type);
+    if (db) {
+        try {
+            const doc = await db.collection('global_movies_cache').doc(cacheKey).get();
+            if (doc.exists) return doc.data();
+        } catch(e) { console.warn("Firebase cache read failed", e); }
     }
 
-    const url = `https://api.themoviedb.org/3/${endpoint}/${id}?append_to_response=credits&api_key=${TMDB_API_KEY}`;
+    let url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${type !== 'mixed' ? '&type=' + (type === 'series' ? 'series' : 'movie') : ''}&apikey=${OMDB_API_KEY}`;
     const data = await (await fetch(url)).json();
-    if (data.success === false) throw new Error('Not found');
-
-    const genres = data.genres ? data.genres.map(g => g.name).join(', ') : '';
-    const cast = data.credits && data.credits.cast ? data.credits.cast.slice(0, 5).map(c => c.name).join(', ') : '';
-    const creator = data.created_by && data.created_by.length > 0 ? data.created_by.map(c => c.name).join(', ') : (endpoint === 'movie' && data.credits && data.credits.crew ? data.credits.crew.filter(c => c.job === 'Director').map(c => c.name).join(', ') : '');
+    if (data.Response === 'False') throw new Error(data.Error || 'Not found');
     
-    let seasonsData = [];
-    if (endpoint === 'tv' && data.seasons) {
-        seasonsData = data.seasons.filter(s => s.season_number > 0).map(s => ({
-            season: s.season_number,
-            episodes: s.episode_count
-        }));
+    const resolvedType = type === 'mixed' ? (data.Type === 'series' ? 'series' : 'movie') : type;
+    const metadata = {
+        title: data.Title, year: data.Year, poster: data.Poster !== 'N/A' ? data.Poster : null,
+        score: data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A', episodes: resolvedType === 'series' && data.totalSeasons ? `${data.totalSeasons} S` : '',
+        runtime: data.Runtime !== 'N/A' ? data.Runtime : '', genre: data.Genre !== 'N/A' ? data.Genre : '',
+        creator: data.Director !== 'N/A' && data.Director ? data.Director : (data.Writer !== 'N/A' ? data.Writer : ''),
+        released: data.Released !== 'N/A' ? data.Released : '', plot: data.Plot !== 'N/A' ? data.Plot : '',
+        cast: data.Actors !== 'N/A' ? data.Actors : '', imdbID: data.imdbID,
+        totalSeasons: resolvedType === 'series' ? parseInt(data.totalSeasons) : null, actualType: resolvedType
+    };
+
+    if (db) {
+        try { await db.collection('global_movies_cache').doc(cacheKey).set(metadata); } catch(e) { console.warn("Firebase cache write failed", e); }
+    }
+    return metadata;
+}
+
+async function fetchSeasonBreakdown(imdbID, totalSeasons) {
+    const cacheKey = `seasons_${imdbID}`;
+    if (db) {
+        try {
+            const doc = await db.collection('global_seasons_cache').doc(cacheKey).get();
+            if (doc.exists) {
+                renderSeasonsList(doc.data().seasons, totalSeasons);
+                return;
+            }
+        } catch(e) {}
     }
 
-    return {
-        title: data.title || data.name,
-        year: (data.release_date || data.first_air_date || '').split('-')[0] || 'N/A',
-        poster: data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : 'N/A',
-        score: data.vote_average ? data.vote_average.toFixed(1) : 'N/A',
-        episodes: endpoint === 'tv' && data.number_of_seasons ? `${data.number_of_seasons} S` : '',
-        runtime: endpoint === 'movie' && data.runtime ? `${data.runtime} min` : (endpoint === 'tv' && data.episode_run_time && data.episode_run_time.length > 0 ? `${data.episode_run_time[0]} min` : ''),
-        genre: genres,
-        creator: creator,
-        released: data.release_date || data.first_air_date || '',
-        plot: data.overview || '',
-        cast: cast,
-        imdbID: data.id,
-        totalSeasons: endpoint === 'tv' ? data.number_of_seasons : null,
-        actualType: endpoint === 'tv' ? 'series' : 'movie',
-        seasonsData: seasonsData.length > 0 ? seasonsData : null
-    };
+    try {
+        const promises = [];
+        const maxSeasons = Math.min(totalSeasons, 15);
+        for (let i = 1; i <= maxSeasons; i++) promises.push(fetch(`https://www.omdbapi.com/?i=${imdbID}&Season=${i}&apikey=${OMDB_API_KEY}`).then(r => r.json()));
+        const seasonsData = await Promise.all(promises);
+        
+        const seasonsToCache = [];
+        seasonsData.forEach(data => {
+            if (data.Response === 'True' && data.Episodes) {
+                seasonsToCache.push({ season: data.Season, episodes: data.Episodes.length });
+            }
+        });
+
+        if (db && seasonsToCache.length > 0) {
+            try { await db.collection('global_seasons_cache').doc(cacheKey).set({ seasons: seasonsToCache }); } catch(e) {}
+        }
+        renderSeasonsList(seasonsToCache, totalSeasons);
+    } catch (err) { modalSeasonsList.innerHTML = '<li>Failed to load season details.</li>'; }
 }
+
+function renderSeasonsList(seasonsToCache, totalSeasons) {
+    modalSeasonsList.innerHTML = '';
+    seasonsToCache.forEach(s => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>Season ${s.season}:</strong> ${s.episodes} Episodes`;
+        modalSeasonsList.appendChild(li);
+    });
+    if (totalSeasons > 15) {
+        const li = document.createElement('li'); li.textContent = `...and ${totalSeasons - 15} more seasons.`; modalSeasonsList.appendChild(li);
+    }
+}
+
 
 // === FIREBASE AUTH & DATABASE LOGIC ===
 if (auth) {
