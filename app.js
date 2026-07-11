@@ -156,17 +156,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 // === EVENT LISTENERS ===
-let debounceTimer;
-
-titleInput.addEventListener('input', () => {
-    clearTimeout(debounceTimer);
-    const query = titleInput.value.trim();
-    if (query.length < 2) { autocompleteDropdown.classList.add('hidden'); return; }
-    debounceTimer = setTimeout(() => { performSearch(query, typeInput.value); }, 300);
-});
-
 typeInput.addEventListener('change', () => {
-    if (titleInput.value.trim().length >= 2) performSearch(titleInput.value.trim(), typeInput.value);
+    autocompleteDropdown.classList.add('hidden');
 });
 
 document.addEventListener('click', (e) => {
@@ -175,8 +166,10 @@ document.addEventListener('click', (e) => {
 
 form.addEventListener('submit', (e) => {
     e.preventDefault();
-    autocompleteDropdown.classList.add('hidden');
-    addWatchlistItem(titleInput.value.trim(), typeInput.value, null);
+    const query = titleInput.value.trim();
+    if (query.length >= 2) {
+        performSearch(query, typeInput.value);
+    }
 });
 
 exportExcelBtn.addEventListener('click', () => {
@@ -219,8 +212,8 @@ exportExcelBtn.addEventListener('click', () => {
 const apiCache = {};
 
 async function performSearch(query, type) {
-    if (OMDB_API_KEY === 'YOUR_OMDB_API_KEY') return;
-    const cacheKey = `${query}_${type}`;
+    if (typeof OMDB_API_KEY === 'undefined' || OMDB_API_KEY === 'YOUR_API_KEY_HERE') return;
+    const cacheKey = `${query.toLowerCase()}_${type}`;
     if (apiCache[cacheKey]) {
         renderAutocomplete(apiCache[cacheKey], type);
         return;
@@ -228,6 +221,20 @@ async function performSearch(query, type) {
 
     try {
         let results = [];
+        
+        // 1. Check Global Firebase Cache
+        if (window.db) {
+            try {
+                const docRef = await db.collection('search_cache').doc(cacheKey).get();
+                if (docRef.exists) {
+                    results = docRef.data().results;
+                    apiCache[cacheKey] = results;
+                    renderAutocomplete(results, type);
+                    return;
+                }
+            } catch (err) { console.warn("Cache read error", err); }
+        }
+
         if (type === 'anime') {
             const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=5`);
             const data = await res.json();
@@ -249,8 +256,13 @@ async function performSearch(query, type) {
                 results = data.Search;
             }
         }
+        
         if (results.length > 0) {
             apiCache[cacheKey] = results;
+            // 2. Save to Global Firebase Cache
+            if (window.db) {
+                db.collection('search_cache').doc(cacheKey).set({ results }).catch(err => console.warn(err));
+            }
             renderAutocomplete(results, type);
         } else {
             autocompleteDropdown.classList.add('hidden');
@@ -822,12 +834,23 @@ btnConfirmDelete.addEventListener('click', () => {
 
 // API Helpers
 async function fetchMovieMetadata(title, type, exactImdbId = null) {
-    if (OMDB_API_KEY === 'YOUR_OMDB_API_KEY') throw new Error('API Key missing.');
+    if (typeof OMDB_API_KEY === 'undefined' || OMDB_API_KEY === 'YOUR_API_KEY_HERE') throw new Error('API Key missing.');
+    
+    const cacheKey = exactImdbId || title.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + type;
+    
+    if (window.db) {
+        try {
+            const docRef = await db.collection('movie_cache').doc(cacheKey).get();
+            if (docRef.exists) return docRef.data();
+        } catch(e) { console.warn("Movie cache read error", e); }
+    }
+
     let url = exactImdbId ? `https://www.omdbapi.com/?i=${exactImdbId}&apikey=${OMDB_API_KEY}` : `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${type !== 'mixed' ? '&type=' + (type === 'series' || type === 'anime' ? 'series' : 'movie') : ''}&apikey=${OMDB_API_KEY}`;
     const data = await (await fetch(url)).json();
     if (data.Response === 'False') throw new Error(data.Error || 'Not found');
     const resolvedType = type === 'mixed' ? (data.Type === 'series' ? 'series' : 'movie') : type;
-    return {
+    
+    const result = {
         title: data.Title, year: data.Year, poster: data.Poster !== 'N/A' ? data.Poster : null,
         score: data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A', episodes: (resolvedType === 'series' || resolvedType === 'anime') && data.totalSeasons ? `${data.totalSeasons} S` : '',
         runtime: data.Runtime !== 'N/A' ? data.Runtime : '', genre: data.Genre !== 'N/A' ? data.Genre : '',
@@ -836,11 +859,31 @@ async function fetchMovieMetadata(title, type, exactImdbId = null) {
         cast: data.Actors !== 'N/A' ? data.Actors : '', imdbID: data.imdbID,
         totalSeasons: (resolvedType === 'series' || resolvedType === 'anime') ? parseInt(data.totalSeasons) : null, actualType: resolvedType
     };
+
+    if (window.db) {
+        if (data.imdbID) db.collection('movie_cache').doc(data.imdbID).set(result).catch(e=>console.warn(e));
+        if (!exactImdbId) db.collection('movie_cache').doc(cacheKey).set(result).catch(e=>console.warn(e));
+    }
+
+    return result;
 }
 
 async function fetchAnimeTotalEpisodes(title) {
+    const cacheKey = 'anime_eps_' + title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (window.db) {
+        try {
+            const docRef = await db.collection('movie_cache').doc(cacheKey).get();
+            if (docRef.exists) return docRef.data().episodes;
+        } catch(e) {}
+    }
+
     const data = await (await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`)).json();
-    return data.data?.[0]?.episodes || null;
+    const eps = data.data?.[0]?.episodes || null;
+    
+    if (window.db && eps) {
+        db.collection('movie_cache').doc(cacheKey).set({ episodes: eps }).catch(e=>console.warn(e));
+    }
+    return eps;
 }
 
 // === FIREBASE AUTH & DATABASE LOGIC ===
