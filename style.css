@@ -4,18 +4,44 @@
     --border-color: #333333;
     --text-primary: #ffffff;
     --text-secondary: #e5e5e5;
-    --accent: #9333ea; /* Purple */
-    --accent-hover: #a855f7;
+    --accent: #e50914; /* Red */
+    --accent-hover: #f40612;
     --error: #e50914;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background-color: var(--bg-base);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
+}
+
+/* Global Select/Dropdown Styling */
+select {
+    background-color: rgba(0, 0, 0, 0.75);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px;
+    padding-right: 30px;
+}
+select:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+select option {
+    background-color: #181818;
+    color: #fff;
 }
 
 /* Utilities */
@@ -26,7 +52,7 @@ body {
 /* Top Header */
 .top-bar {
     position: fixed;
-    top: 0; left: 0; width: 100%;
+    top: 0; left: 68px; width: calc(100% - 68px);
     display: flex;
     align-items: center;
     padding: 0 4%;
@@ -265,11 +291,11 @@ select.sort-dropdown option {
 }
 
 .hero-title {
-    font-size: 4rem;
+    font-size: 3rem;
     font-weight: 700;
-    line-height: 1.1;
     margin-bottom: 1rem;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.45);
+    line-height: 1.1;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
 }
 
 .hero-meta {
@@ -471,28 +497,37 @@ select.sort-dropdown option {
 }
 
 .btn-round.btn-details {
-    background: #fff;
-    color: #000;
-    border-color: #fff;
+    height: calc(100% - 100px);
+    display: flex;
+    flex-direction: column;
 }
 
 .card-title {
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
     line-clamp: 2;
-    overflow: hidden;
+    -webkit-box-orient: vertical;
 }
 
 .card-meta {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
+    margin-top: 4px;
+    gap: 8px;
+}
+.card-score {
+    color: gold;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .match-score { color: #46d369; }
@@ -789,7 +824,7 @@ select.sort-dropdown option {
     padding: 1rem 0;
     z-index: 1000;
     transition: width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    overflow-x: hidden;
+    /* overflow-x: hidden; removed to fix profile menu clipping */
     white-space: nowrap;
 }
 
@@ -976,6 +1011,6 @@ select.sort-dropdown option {
 .profile-menu {
     top: auto;
     bottom: 50px;
-    left: 60px;
+    left: 75px;
     right: auto;
 }

@@ -173,6 +173,13 @@ form.addEventListener('submit', (e) => {
     }
 });
 
+const sidebarElement = document.querySelector('.sidebar');
+if (sidebarElement && typeInput) {
+    sidebarElement.addEventListener('mouseleave', () => {
+        typeInput.blur();
+    });
+}
+
 internalSearchInput.addEventListener('input', renderRows);
 
 exportExcelBtn.addEventListener('click', () => {
@@ -502,7 +509,7 @@ function renderHeroBanner(items) {
 
     // Create meta string
     const metaParts = [];
-    if (heroItem.score !== 'N/A') metaParts.push(`<span style="color:#46d369">${heroItem.score} Match</span>`);
+    if (heroItem.score !== 'N/A') metaParts.push(`<span style="color:gold; font-weight:bold;"><i class="ph-fill ph-star"></i> IMDb ${heroItem.score}</span>`);
     if (heroItem.year && heroItem.year !== 'N/A') metaParts.push(`<span>${heroItem.year}</span>`);
     metaParts.push(`<span class="border-badge">${heroItem.type.toUpperCase()}</span>`);
     if (heroItem.episodes) metaParts.push(`<span>${heroItem.episodes}</span>`);
@@ -542,7 +549,7 @@ function createCardNode(item) {
     card.querySelector('.poster').src = item.poster;
     card.querySelector('.card-title').textContent = item.title;
     card.querySelector('.card-year').textContent = item.year;
-    card.querySelector('.score-val').textContent = item.score;
+    card.querySelector('.score-val').innerHTML = item.score !== 'N/A' ? `<i class="ph-fill ph-star"></i> IMDb ${item.score}` : '';
     const typeBadge = card.querySelector('.type-badge');
     if (item.progress && (item.type === 'series' || item.type === 'anime')) {
         typeBadge.textContent = `S${item.progress.season} E${item.progress.episode}`;
