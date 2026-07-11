@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BingeDeck</title>
+    <!-- Google Fonts: Outfit for modern geometric typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Top Bar (Transparent to Solid) -->
+        <header class="top-bar" id="main-header">
+            <div class="top-brand">
+                <h2><i class="ph-bold ph-monitor-play"></i> BingeDeck</h2>
+            </div>
+            
+            <div class="header-nav" id="category-filters">
+                <button class="nav-link active" data-tab="all">Home</button>
+                <button class="nav-link" data-tab="movie">Movies</button>
+                <button class="nav-link" data-tab="series">TV Shows</button>
+                <button class="nav-link" data-tab="anime">Anime</button>
+                <button class="nav-link" id="filter-unwatched-toggle">Unwatched</button>
+            </div>
+
+            <div class="top-actions">
+                <select id="genre-filter" class="sort-dropdown" title="Filter by Genre">
+                    <option value="all">All Genres</option>
+                </select>
+                <select id="global-sort" class="sort-dropdown" title="Sort By">
+                    <option value="added_desc">Recently Added</option>
+                    <option value="score_desc">Highest IMDB Score</option>
+                    <option value="year_desc">Newest Release</option>
+                    <option value="year_asc">Oldest Release</option>
+                    <option value="alpha_asc">Alphabetical (A-Z)</option>
+                    <option value="runtime_desc">Longest Runtime</option>
+                </select>
+                <form id="watchlist-form" class="netflix-search">
+                    <input type="text" id="title" placeholder="Add a Movie, Show, or Anime..." required autocomplete="off">
+                    <select id="type" required class="hidden">
+                        <option value="mixed">Mixed</option>
+                        <option value="movie">Movie</option>
+                        <option value="series">TV Series</option>
+                        <option value="anime">Anime</option>
+                    </select>
+                    <button type="submit" id="btn-submit-add" title="Add Item">
+                        <i class="ph-bold ph-plus"></i>
+                    </button>
+                    <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
+                </form>
+                <div id="error-message" class="error-msg hidden"></div>
+                
+                <button id="bulk-import-btn" class="nav-btn" title="Bulk Import">Import</button>
+                <button id="export-excel-btn" class="nav-btn" title="Export to Excel (CSV)">Export</button>
+                <button id="theme-toggle" class="nav-icon hidden" title="Toggle Theme"><i class="ph ph-sun"></i></button>
+                
+                <div id="profile-module" class="profile-module">
+                    <button id="btn-signin" class="nav-btn btn-signin">Sign In</button>
+                    <div id="profile-avatar-container" class="profile-avatar-container hidden">
+                        <img id="profile-avatar" src="" alt="Profile" class="profile-avatar">
+                        <div id="profile-menu" class="profile-menu hidden">
+                            <div class="profile-menu-header">
+                                <span id="profile-name" class="profile-name"></span>
+                                <span id="profile-email" class="profile-email"></span>
+                            </div>
+                            <div class="profile-stats">
+                                <div><span id="stat-movies">0</span> Movies</div>
+                                <div><span id="stat-shows">0</span> Shows</div>
+                                <div><span id="stat-anime">0</span> Anime</div>
+                            </div>
+                            <div class="profile-actions">
+                                <button id="btn-delete-all" class="btn-danger"><i class="ph-bold ph-trash"></i> Delete All Data</button>
+                                <button id="btn-signout" class="btn-secondary"><i class="ph-bold ph-sign-out"></i> Sign Out</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content (Hero & Grid) -->
+        <main class="main-content">
+            <!-- Hero Banner -->
+            <section id="hero-banner" class="hero-banner hidden">
+                <div class="hero-bg" id="hero-bg"></div>
+                <div class="hero-vignette"></div>
+                
+                <div class="hero-inner">
+                    <div class="hero-poster-container">
+                        <img src="" id="hero-poster" alt="Featured Poster" class="hero-poster">
+                    </div>
+                    <div class="hero-content">
+                        <h1 id="hero-title" class="hero-title"></h1>
+                        <div class="hero-meta" id="hero-meta"></div>
+                        <p id="hero-plot" class="hero-plot"></p>
+                        <div class="hero-actions">
+                            <button id="hero-btn-details" class="hero-btn primary"><i class="ph-fill ph-play"></i> Details</button>
+                            <button id="hero-btn-watch" class="hero-btn secondary"><i class="ph-bold ph-eye"></i> Mark Watched</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Carousels Container -->
+            <section class="watchlist-section" id="carousels-container">
+                <!-- Rows injected here via JS -->
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Template for a Netflix Card -->
+    <template id="card-template">
+        <article class="netflix-card">
+            <div class="card-image">
+                <img src="" alt="Poster" class="poster" loading="lazy">
+            </div>
+            <div class="card-hover-panel">
+                <div class="hover-actions">
+                    <button class="btn-round btn-details" title="Details"><i class="ph-fill ph-play"></i></button>
+                    <button class="btn-round btn-watch-toggle" title="Mark Watched"><i class="ph-bold ph-eye"></i></button>
+                    <button class="btn-round btn-delete" title="Remove"><i class="ph-bold ph-trash"></i></button>
+                </div>
+                <h3 class="card-title"></h3>
+                <div class="card-meta">
+                    <span class="match-score"><span class="score-val"></span> Match</span>
+                    <span class="card-year border-badge"></span>
+                    <span class="type-badge"></span>
+                    <span class="episodes hidden"></span>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <!-- Modal for Details (Cinematic) -->
+    <div id="details-modal" class="modal hidden details-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content cinematic-content">
+            <button class="btn-close-modal"><i class="ph-bold ph-x"></i></button>
+            <div class="modal-hero">
+                <div class="modal-hero-bg" id="modal-hero-bg"></div>
+                <div class="modal-hero-vignette"></div>
+                <div class="modal-hero-inner">
+                    <div class="modal-hero-poster-container">
+                        <img src="" id="modal-hero-poster" alt="Modal Poster" class="modal-hero-poster">
+                    </div>
+                    <div class="modal-hero-content">
+                        <h2 id="modal-title" class="modal-title-overlay"></h2>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info-col">
+                    <div class="modal-meta">
+                        <span class="match-score"><span id="modal-score"></span> Match</span>
+                        <span id="modal-year"></span>
+                        <span id="modal-type" class="border-badge"></span>
+                        <span id="modal-episodes" class="hidden"></span>
+                        <span id="modal-runtime" class="hidden"></span>
+                    </div>
+                    <p id="modal-plot" class="modal-plot-text"></p>
+                    
+                    <div id="progress-tracker" class="hidden progress-tracker">
+                        <h3>Track Progress</h3>
+                        <div class="progress-inputs">
+                            <label>S: <input type="number" id="track-season" min="1"></label>
+                            <label>E: <input type="number" id="track-episode" min="1"></label>
+                            <button id="btn-save-progress" class="btn-primary">Save</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-tags-col">
+                    <div class="tags-group">
+                        <span class="tags-label">Cast:</span> <span id="modal-cast"></span>
+                    </div>
+                    <div class="tags-group" id="modal-genre-container">
+                        <span class="tags-label">Genres:</span> <span id="modal-genre"></span>
+                    </div>
+                    <div class="tags-group" id="modal-creator-container">
+                        <span class="tags-label">Creator:</span> <span id="modal-creator"></span>
+                    </div>
+
+                    <div class="modal-seasons hidden" id="modal-seasons-container">
+                        <h3>Seasons & Episodes</h3>
+                        <ul id="modal-seasons-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Confirm Delete -->
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content confirm-modal-content">
+            <div class="modal-body">
+                <h3>Delete Item?</h3>
+                <p>Are you sure you want to remove <strong id="confirm-item-title"></strong> from your watchlist?</p>
+                <div class="confirm-actions">
+                    <button class="btn-cancel" id="btn-cancel-delete">Cancel</button>
+                    <button class="btn-confirm-delete" id="btn-confirm-delete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Bulk Import -->
+    <div id="bulk-import-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content bulk-modal-content">
+            <button class="btn-close-modal" id="btn-close-bulk"><i class="ph-bold ph-x"></i></button>
+            <div class="modal-body">
+                <h3>Bulk Import Titles</h3>
+                <p class="modal-hint">Paste your list below (one title per line).</p>
+                <textarea id="bulk-import-text" rows="10" placeholder="Inception\nThe Matrix\nBreaking Bad..."></textarea>
+                
+                <div class="bulk-options">
+                    <label for="bulk-type">Content Type:</label>
+                    <select id="bulk-type">
+                        <option value="mixed">Mixed (Auto-detect)</option>
+                        <option value="movie">Movies Only</option>
+                        <option value="series">TV Shows Only</option>
+                        <option value="anime">Anime Only</option>
+                    </select>
+                </div>
+
+                <div class="bulk-actions">
+                    <button class="btn-primary" id="btn-start-bulk">Start Import</button>
+                </div>
+                
+                <div id="bulk-progress-container" class="hidden">
+                    <p id="bulk-progress-text"></p>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" id="bulk-progress-fill"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
