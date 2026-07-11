@@ -402,7 +402,6 @@ btnStartBulk.addEventListener('click', async () => {
             });
             addedCount++;
         } catch (err) { failedTitles.push(title); }
-        await new Promise(r => setTimeout(r, 350));
     }
 
     saveData(); renderRows();
@@ -825,14 +824,19 @@ async function fetchMovieMetadata(title, type, exactId = null) {
     }
 
     let endpoint = type === 'series' ? 'tv' : 'movie';
+    let searchEndpoint = type === 'series' ? 'tv' : (type === 'mixed' ? 'multi' : 'movie');
     let id = exactId;
     
     if (!id) {
-        const searchUrl = `https://api.themoviedb.org/3/search/${endpoint}?query=${encodeURIComponent(title)}&api_key=${TMDB_API_KEY}`;
+        const searchUrl = `https://api.themoviedb.org/3/search/${searchEndpoint}?query=${encodeURIComponent(title)}&api_key=${TMDB_API_KEY}`;
         const searchRes = await (await fetch(searchUrl)).json();
         if (!searchRes.results || searchRes.results.length === 0) throw new Error('Not found');
-        id = searchRes.results[0].id;
-        endpoint = searchRes.results[0].media_type === 'tv' || type === 'series' ? 'tv' : 'movie';
+        
+        // Find the first valid movie or tv show (ignore people)
+        const validResult = searchRes.results.find(r => r.media_type === 'movie' || r.media_type === 'tv') || searchRes.results[0];
+        
+        id = validResult.id;
+        endpoint = validResult.media_type === 'tv' || type === 'series' ? 'tv' : 'movie';
     }
 
     const url = `https://api.themoviedb.org/3/${endpoint}/${id}?append_to_response=credits&api_key=${TMDB_API_KEY}`;
