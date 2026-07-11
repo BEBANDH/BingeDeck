@@ -748,9 +748,11 @@ async function fetchMovieMetadata(title, type) {
     const cacheKey = encodeURIComponent(title.toLowerCase() + '_' + type);
     if (db) {
         try {
-            const doc = await db.collection('global_movies_cache').doc(cacheKey).get();
+            const cachePromise = db.collection('global_movies_cache').doc(cacheKey).get();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 1500));
+            const doc = await Promise.race([cachePromise, timeoutPromise]);
             if (doc.exists) return doc.data();
-        } catch(e) { console.warn("Firebase cache read failed", e); }
+        } catch(e) { console.warn("Firebase cache read failed/timeout", e); }
     }
 
     let url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${type !== 'mixed' ? '&type=' + (type === 'series' ? 'series' : 'movie') : ''}&apikey=${OMDB_API_KEY}`;
@@ -778,7 +780,9 @@ async function fetchSeasonBreakdown(imdbID, totalSeasons) {
     const cacheKey = `seasons_${imdbID}`;
     if (db) {
         try {
-            const doc = await db.collection('global_seasons_cache').doc(cacheKey).get();
+            const cachePromise = db.collection('global_seasons_cache').doc(cacheKey).get();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 1500));
+            const doc = await Promise.race([cachePromise, timeoutPromise]);
             if (doc.exists) {
                 renderSeasonsList(doc.data().seasons, totalSeasons);
                 return;
