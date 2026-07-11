@@ -208,7 +208,7 @@ exportExcelBtn.addEventListener('click', () => {
 
 
 async function addWatchlistItem(title, type, exactImdbId = null) {
-    hideError();
+    errorMsg.classList.add('hidden');
     if (!title) return;
     if (watchlist.some(item => item.title.toLowerCase() === title.toLowerCase() && (item.type === type || type === 'mixed'))) {
         showError('Item is already in your watchlist!');
