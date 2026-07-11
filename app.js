@@ -117,17 +117,6 @@ const bulkProgressContainer = document.getElementById('bulk-progress-container')
 const bulkProgressText = document.getElementById('bulk-progress-text');
 const bulkProgressFill = document.getElementById('bulk-progress-fill');
 
-function showError(msg) {
-    if (!errorMsg) return;
-    errorMsg.textContent = msg;
-    errorMsg.classList.remove('hidden');
-    setTimeout(() => errorMsg.classList.add('hidden'), 5000);
-}
-
-function hideError() {
-    if (errorMsg) errorMsg.classList.add('hidden');
-}
-
 // === STATE ===
 let watchlist = JSON.parse(localStorage.getItem('cinevault_data')) || [];
 let currentFilter = 'all'; // 'all', 'movie', 'series', 'anime'
@@ -167,7 +156,18 @@ document.addEventListener('keydown', (e) => {
 });
 
 // === EVENT LISTENERS ===
+let debounceTimer;
 
+titleInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const query = titleInput.value.trim();
+    if (query.length < 2) { autocompleteDropdown.classList.add('hidden'); return; }
+    debounceTimer = setTimeout(() => { performSearch(query, typeInput.value); }, 300);
+});
+
+typeInput.addEventListener('change', () => {
+    if (titleInput.value.trim().length >= 2) performSearch(titleInput.value.trim(), typeInput.value);
+});
 
 document.addEventListener('click', (e) => {
     if (!form.contains(e.target)) autocompleteDropdown.classList.add('hidden');
@@ -216,10 +216,75 @@ exportExcelBtn.addEventListener('click', () => {
     document.body.removeChild(link);
 });
 
+const apiCache = {};
 
+async function performSearch(query, type) {
+    if (OMDB_API_KEY === 'YOUR_OMDB_API_KEY') return;
+    const cacheKey = `${query}_${type}`;
+    if (apiCache[cacheKey]) {
+        renderAutocomplete(apiCache[cacheKey], type);
+        return;
+    }
+
+    try {
+        let results = [];
+        if (type === 'anime') {
+            const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=5`);
+            const data = await res.json();
+            if (data.data) {
+                results = data.data.map(item => ({
+                    Title: item.title_english || item.title,
+                    Year: item.year || (item.aired ? item.aired.prop.from.year : 'N/A'),
+                    Poster: item.images?.jpg?.image_url || 'N/A',
+                    imdbID: null
+                }));
+            }
+        } else {
+            const queryType = type === 'series' ? 'series' : (type === 'mixed' ? '' : 'movie');
+            const typeStr = queryType ? `&type=${queryType}` : '';
+            const url = `https://www.omdbapi.com/?s=${encodeURIComponent(query)}${typeStr}&apikey=${OMDB_API_KEY}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.Response === 'True' && data.Search) {
+                results = data.Search;
+            }
+        }
+        if (results.length > 0) {
+            apiCache[cacheKey] = results;
+            renderAutocomplete(results, type);
+        } else {
+            autocompleteDropdown.classList.add('hidden');
+        }
+    } catch (err) {
+        autocompleteDropdown.classList.add('hidden');
+    }
+}
+
+function renderAutocomplete(results, type) {
+    autocompleteDropdown.innerHTML = '';
+    results.slice(0, 5).forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'autocomplete-item';
+        const posterSrc = item.Poster !== 'N/A' ? item.Poster : 'https://via.placeholder.com/40x60/222222/6b7280?text=NA';
+        div.innerHTML = `
+            <img src="${posterSrc}" alt="Poster" class="autocomplete-poster">
+            <div class="autocomplete-item-info">
+                <span class="autocomplete-item-title">${item.Title}</span>
+                <span class="autocomplete-item-year">${item.Year}</span>
+            </div>
+        `;
+        div.addEventListener('click', () => {
+            titleInput.value = item.Title;
+            autocompleteDropdown.classList.add('hidden');
+            addWatchlistItem(item.Title, type, item.imdbID);
+        });
+        autocompleteDropdown.appendChild(div);
+    });
+    autocompleteDropdown.classList.remove('hidden');
+}
 
 async function addWatchlistItem(title, type, exactImdbId = null) {
-    errorMsg.classList.add('hidden');
+    hideError();
     if (!title) return;
     if (watchlist.some(item => item.title.toLowerCase() === title.toLowerCase() && (item.type === type || type === 'mixed'))) {
         showError('Item is already in your watchlist!');
@@ -234,6 +299,17 @@ async function addWatchlistItem(title, type, exactImdbId = null) {
         const metadata = await fetchMovieMetadata(title, type, exactImdbId);
         let actualType = metadata.actualType || type;
 
+        if (actualType === 'anime' || type === 'anime') {
+            actualType = 'anime';
+            try {
+                const jikanEps = await fetchAnimeTotalEpisodes(title);
+                if (jikanEps && (metadata.totalSeasons === 1 || !metadata.totalSeasons)) {
+                    metadata.episodes = `${jikanEps} Eps`;
+                    metadata.totalSeasons = null;
+                }
+            } catch (err) { console.warn("Jikan fallback failed", err); }
+        }
+
         const newItem = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             title: metadata.title || title,
@@ -246,11 +322,10 @@ async function addWatchlistItem(title, type, exactImdbId = null) {
             genre: metadata.genre || '',
             creator: metadata.creator || '',
             released: metadata.released || '',
-            plot: metadata.plot || '',
+            plot: metadata.plot || 'No description available.',
             cast: metadata.cast || '',
             imdbID: metadata.imdbID || null,
             totalSeasons: metadata.totalSeasons || null,
-            seasonsData: metadata.seasonsData || null,
             addedAt: new Date().toISOString(),
             isUnwatched: true
         };
@@ -305,6 +380,17 @@ btnStartBulk.addEventListener('click', async () => {
             let eps = metadata.episodes;
             let actualType = metadata.actualType || type;
 
+            if (actualType === 'anime' || type === 'anime') {
+                actualType = 'anime';
+                try {
+                    const jikanEps = await fetchAnimeTotalEpisodes(title);
+                    if (jikanEps && (metadata.totalSeasons === 1 || !metadata.totalSeasons)) {
+                        eps = `${jikanEps} Eps`;
+                        metadata.totalSeasons = null;
+                    }
+                } catch (err) { }
+            }
+
             watchlist.unshift({
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 title: metadata.title || title,
@@ -321,7 +407,6 @@ btnStartBulk.addEventListener('click', async () => {
                 cast: metadata.cast || '',
                 imdbID: metadata.imdbID || null,
                 totalSeasons: metadata.totalSeasons || null,
-                seasonsData: metadata.seasonsData || null,
                 addedAt: new Date().toISOString(),
                 isUnwatched: true
             });
@@ -699,11 +784,29 @@ function openModal(item) {
         modalSeasonsContainer.classList.remove('hidden');
         modalSeasonsList.innerHTML = '<li class="loading-seasons"><i class="ph-bold ph-spinner ph-spin"></i> Fetching seasons...</li>';
         fetchSeasonBreakdown(item.imdbID, item.totalSeasons);
-    } else {
-        modalSeasonsContainer.classList.add('hidden');
     }
 }
 
+async function fetchSeasonBreakdown(imdbID, totalSeasons) {
+    try {
+        const promises = [];
+        const maxSeasons = Math.min(totalSeasons, 15);
+        for (let i = 1; i <= maxSeasons; i++) promises.push(fetch(`https://www.omdbapi.com/?i=${imdbID}&Season=${i}&apikey=${OMDB_API_KEY}`).then(r => r.json()));
+
+        const seasonsData = await Promise.all(promises);
+        modalSeasonsList.innerHTML = '';
+        seasonsData.forEach(data => {
+            if (data.Response === 'True' && data.Episodes) {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>Season ${data.Season}:</strong> ${data.Episodes.length} Episodes`;
+                modalSeasonsList.appendChild(li);
+            }
+        });
+        if (totalSeasons > 15) {
+            const li = document.createElement('li'); li.textContent = `...and ${totalSeasons - 15} more seasons.`; modalSeasonsList.appendChild(li);
+        }
+    } catch (err) { modalSeasonsList.innerHTML = '<li>Failed to load season details.</li>'; }
+}
 
 function closeModal() { detailsModal.classList.add('hidden'); document.body.style.overflow = ''; }
 btnCloseModal.addEventListener('click', closeModal);
@@ -718,110 +821,27 @@ btnConfirmDelete.addEventListener('click', () => {
 });
 
 // API Helpers
-async function fetchMovieMetadata(title, type) {
-    if (typeof OMDB_API_KEY === 'undefined' || OMDB_API_KEY === 'YOUR_API_KEY_HERE') throw new Error('API Key missing.');
-    
-    if (type === 'anime') {
-        const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const item = data.data?.[0];
-        if (!item) throw new Error('Not found');
-        return {
-            title: item.title_english || item.title,
-            year: item.year || (item.aired && item.aired.prop.from.year ? item.aired.prop.from.year : 'N/A'),
-            poster: item.images?.jpg?.large_image_url || 'N/A',
-            score: item.score ? item.score.toString() : 'N/A',
-            episodes: item.episodes ? `${item.episodes} Eps` : '',
-            runtime: item.duration || '',
-            genre: item.genres ? item.genres.map(g => g.name).join(', ') : '',
-            creator: item.studios ? item.studios.map(s => s.name).join(', ') : '',
-            released: item.aired?.string || '',
-            plot: item.synopsis || '',
-            cast: '',
-            imdbID: item.mal_id,
-            totalSeasons: null,
-            actualType: 'anime'
-        };
-    }
-
-    const cacheKey = encodeURIComponent(title.toLowerCase() + '_' + type);
-    if (db) {
-        try {
-            const cachePromise = db.collection('global_movies_cache').doc(cacheKey).get();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 1500));
-            const doc = await Promise.race([cachePromise, timeoutPromise]);
-            if (doc.exists) return doc.data();
-        } catch(e) { console.warn("Firebase cache read failed/timeout", e); }
-    }
-
-    let url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${type !== 'mixed' ? '&type=' + (type === 'series' ? 'series' : 'movie') : ''}&apikey=${OMDB_API_KEY}`;
+async function fetchMovieMetadata(title, type, exactImdbId = null) {
+    if (OMDB_API_KEY === 'YOUR_OMDB_API_KEY') throw new Error('API Key missing.');
+    let url = exactImdbId ? `https://www.omdbapi.com/?i=${exactImdbId}&apikey=${OMDB_API_KEY}` : `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${type !== 'mixed' ? '&type=' + (type === 'series' || type === 'anime' ? 'series' : 'movie') : ''}&apikey=${OMDB_API_KEY}`;
     const data = await (await fetch(url)).json();
     if (data.Response === 'False') throw new Error(data.Error || 'Not found');
-    
     const resolvedType = type === 'mixed' ? (data.Type === 'series' ? 'series' : 'movie') : type;
-    const metadata = {
+    return {
         title: data.Title, year: data.Year, poster: data.Poster !== 'N/A' ? data.Poster : null,
-        score: data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A', episodes: resolvedType === 'series' && data.totalSeasons ? `${data.totalSeasons} S` : '',
+        score: data.imdbRating !== 'N/A' ? data.imdbRating : 'N/A', episodes: (resolvedType === 'series' || resolvedType === 'anime') && data.totalSeasons ? `${data.totalSeasons} S` : '',
         runtime: data.Runtime !== 'N/A' ? data.Runtime : '', genre: data.Genre !== 'N/A' ? data.Genre : '',
         creator: data.Director !== 'N/A' && data.Director ? data.Director : (data.Writer !== 'N/A' ? data.Writer : ''),
         released: data.Released !== 'N/A' ? data.Released : '', plot: data.Plot !== 'N/A' ? data.Plot : '',
         cast: data.Actors !== 'N/A' ? data.Actors : '', imdbID: data.imdbID,
-        totalSeasons: resolvedType === 'series' ? parseInt(data.totalSeasons) : null, actualType: resolvedType
+        totalSeasons: (resolvedType === 'series' || resolvedType === 'anime') ? parseInt(data.totalSeasons) : null, actualType: resolvedType
     };
-
-    if (db) {
-        try { await db.collection('global_movies_cache').doc(cacheKey).set(metadata); } catch(e) { console.warn("Firebase cache write failed", e); }
-    }
-    return metadata;
 }
 
-async function fetchSeasonBreakdown(imdbID, totalSeasons) {
-    const cacheKey = `seasons_${imdbID}`;
-    if (db) {
-        try {
-            const cachePromise = db.collection('global_seasons_cache').doc(cacheKey).get();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 1500));
-            const doc = await Promise.race([cachePromise, timeoutPromise]);
-            if (doc.exists) {
-                renderSeasonsList(doc.data().seasons, totalSeasons);
-                return;
-            }
-        } catch(e) {}
-    }
-
-    try {
-        const promises = [];
-        const maxSeasons = Math.min(totalSeasons, 15);
-        for (let i = 1; i <= maxSeasons; i++) promises.push(fetch(`https://www.omdbapi.com/?i=${imdbID}&Season=${i}&apikey=${OMDB_API_KEY}`).then(r => r.json()));
-        const seasonsData = await Promise.all(promises);
-        
-        const seasonsToCache = [];
-        seasonsData.forEach(data => {
-            if (data.Response === 'True' && data.Episodes) {
-                seasonsToCache.push({ season: data.Season, episodes: data.Episodes.length });
-            }
-        });
-
-        if (db && seasonsToCache.length > 0) {
-            try { await db.collection('global_seasons_cache').doc(cacheKey).set({ seasons: seasonsToCache }); } catch(e) {}
-        }
-        renderSeasonsList(seasonsToCache, totalSeasons);
-    } catch (err) { modalSeasonsList.innerHTML = '<li>Failed to load season details.</li>'; }
+async function fetchAnimeTotalEpisodes(title) {
+    const data = await (await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`)).json();
+    return data.data?.[0]?.episodes || null;
 }
-
-function renderSeasonsList(seasonsToCache, totalSeasons) {
-    modalSeasonsList.innerHTML = '';
-    seasonsToCache.forEach(s => {
-        const li = document.createElement('li');
-        li.innerHTML = `<strong>Season ${s.season}:</strong> ${s.episodes} Episodes`;
-        modalSeasonsList.appendChild(li);
-    });
-    if (totalSeasons > 15) {
-        const li = document.createElement('li'); li.textContent = `...and ${totalSeasons - 15} more seasons.`; modalSeasonsList.appendChild(li);
-    }
-}
-
 
 // === FIREBASE AUTH & DATABASE LOGIC ===
 if (auth) {
