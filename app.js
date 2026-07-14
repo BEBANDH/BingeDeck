@@ -44,6 +44,7 @@ const exportExcelBtn = document.getElementById('export-excel-btn');
 const genreFilter = document.getElementById('genre-filter');
 const mainHeader = document.getElementById('main-header');
 const internalSearchInput = document.getElementById('internal-search');
+const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
 
 // Profile Elements
 const btnSignin = document.getElementById('btn-signin');
@@ -70,6 +71,7 @@ const heroBtnWatch = document.getElementById('hero-btn-watch');
 let currentHeroItem = null;
 
 // Modal Elements
+let currentModalItem = null;
 const detailsModal = document.getElementById('details-modal');
 const btnCloseModal = document.querySelector('.btn-close-modal');
 const modalBackdrop = document.querySelector('.modal-backdrop');
@@ -78,7 +80,7 @@ const modalHeroPoster = document.getElementById('modal-hero-poster');
 const modalTitle = document.getElementById('modal-title');
 const modalYear = document.getElementById('modal-year');
 const modalScore = document.getElementById('modal-score');
-const modalType = document.getElementById('modal-type');
+const modalTypeOverride = document.getElementById('modal-type-override');
 const modalEpisodes = document.getElementById('modal-episodes');
 const modalRuntime = document.getElementById('modal-runtime');
 const modalGenre = document.getElementById('modal-genre');
@@ -139,6 +141,12 @@ function init() {
             mainHeader.classList.remove('scrolled');
         }
     });
+
+    if (mobileMenuToggle && sidebarElement) {
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebarElement.classList.toggle('mobile-open');
+        });
+    }
 
     renderRows();
 }
@@ -418,19 +426,54 @@ btnStartBulk.addEventListener('click', async () => {
         try {
             if (watchlist.some(item => item.title.toLowerCase() === title.toLowerCase())) continue;
 
-            const metadata = await fetchMovieMetadata(title, type);
-            let eps = metadata.episodes;
-            let actualType = metadata.actualType || type;
+            let metadata = null;
+            let actualType = type;
+            let eps = '';
 
-            if (actualType === 'anime' || type === 'anime') {
-                actualType = 'anime';
+            // 1. Try Jikan if Anime
+            if (type === 'anime') {
                 try {
-                    const jikanEps = await fetchAnimeTotalEpisodes(title);
-                    if (jikanEps && (metadata.totalSeasons === 1 || !metadata.totalSeasons)) {
-                        eps = `${jikanEps} Eps`;
-                        metadata.totalSeasons = null;
+                    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(title)}&limit=1`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.data && data.data.length > 0) {
+                            const item = data.data[0];
+                            metadata = {
+                                title: item.title_english || item.title,
+                                year: item.year || (item.aired && item.aired.prop && item.aired.prop.from ? item.aired.prop.from.year : 'N/A'),
+                                poster: item.images?.jpg?.image_url || null,
+                                score: item.score ? item.score.toString() : 'N/A',
+                                episodes: item.episodes ? `${item.episodes} Eps` : '',
+                                runtime: item.duration || '',
+                                genre: item.genres ? item.genres.map(g => g.name).join(', ') : '',
+                                plot: item.synopsis || 'No description available.',
+                                actualType: 'anime',
+                                totalSeasons: null,
+                                imdbID: null
+                            };
+                            eps = metadata.episodes;
+                            actualType = 'anime';
+                        }
                     }
-                } catch (err) { }
+                } catch(e) { console.warn("Jikan fallback failed", e); }
+            }
+
+            // 2. Fallback to OMDB
+            if (!metadata) {
+                metadata = await fetchMovieMetadata(title, type);
+                eps = metadata.episodes;
+                actualType = metadata.actualType || type;
+
+                if (actualType === 'anime' || type === 'anime') {
+                    actualType = 'anime';
+                    try {
+                        const jikanEps = await fetchAnimeTotalEpisodes(title);
+                        if (jikanEps && (metadata.totalSeasons === 1 || !metadata.totalSeasons)) {
+                            eps = `${jikanEps} Eps`;
+                            metadata.totalSeasons = null;
+                        }
+                    } catch (err) { }
+                }
             }
 
             watchlist.unshift({
@@ -781,12 +824,13 @@ function hideError() { errorMsg.classList.add('hidden'); errorMsg.textContent = 
 
 // === MODAL LOGIC ===
 function openModal(item) {
+    currentModalItem = item;
     modalHeroBg.style.backgroundImage = `url('${item.poster}')`;
     modalHeroPoster.src = item.poster;
     modalTitle.textContent = item.title;
     modalYear.textContent = item.year;
     modalScore.textContent = item.score;
-    modalType.textContent = item.type.toUpperCase();
+    modalTypeOverride.value = item.type;
 
     if (item.episodes) { modalEpisodes.textContent = `• ${item.episodes}`; modalEpisodes.classList.remove('hidden'); }
     else { modalEpisodes.classList.add('hidden'); }
@@ -855,6 +899,14 @@ async function fetchSeasonBreakdown(imdbID, totalSeasons) {
 function closeModal() { detailsModal.classList.add('hidden'); document.body.style.overflow = ''; }
 btnCloseModal.addEventListener('click', closeModal);
 modalBackdrop.addEventListener('click', closeModal);
+
+modalTypeOverride.addEventListener('change', (e) => {
+    if (currentModalItem) {
+        currentModalItem.type = e.target.value;
+        saveData();
+        renderRows();
+    }
+});
 
 btnCancelDelete.addEventListener('click', () => { confirmModal.classList.add('hidden'); itemToDeleteId = null; });
 btnConfirmDelete.addEventListener('click', () => {
@@ -933,10 +985,22 @@ if (auth) {
             // Fetch Cloud Data
             try {
                 const docRef = await db.collection('users').doc(user.uid).get();
+                let cloudWatchlist = [];
                 if (docRef.exists) {
-                    watchlist = docRef.data().watchlist || [];
-                    localStorage.setItem('cinevault_data', JSON.stringify(watchlist));
+                    cloudWatchlist = docRef.data().watchlist || [];
                 }
+                
+                // Merge local watchlist with cloud watchlist (avoiding duplicates)
+                let merged = [...cloudWatchlist];
+                watchlist.forEach(localItem => {
+                    if (!merged.some(cloudItem => cloudItem.id === localItem.id || cloudItem.title.toLowerCase() === localItem.title.toLowerCase())) {
+                        merged.push(localItem);
+                    }
+                });
+                
+                watchlist = merged;
+                // Force sync the merged list to both local storage and cloud
+                saveData();
                 renderRows();
             } catch (err) {
                 console.error("Error fetching cloud data:", err);

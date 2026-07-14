@@ -76,6 +76,7 @@
         <div class="main-wrapper">
             <!-- Top Bar -->
             <header class="top-bar" id="main-header">
+                <button id="mobile-menu-toggle" class="mobile-menu-toggle"><i class="ph-bold ph-list"></i></button>
                 <div class="internal-search-container">
                     <i class="ph ph-magnifying-glass search-icon"></i>
                     <input type="text" id="internal-search" placeholder="Search your watchlist..." autocomplete="off">
@@ -180,7 +181,11 @@
                     <div class="modal-meta">
                         <span class="match-score"><span id="modal-score"></span> Match</span>
                         <span id="modal-year"></span>
-                        <span id="modal-type" class="border-badge"></span>
+                        <select id="modal-type-override" class="border-badge" style="background:transparent; color:#fff; border:1px solid #333; outline:none; font-family:inherit; cursor:pointer;">
+                            <option value="movie">MOVIE</option>
+                            <option value="series">SERIES</option>
+                            <option value="anime">ANIME</option>
+                        </select>
                         <span id="modal-episodes" class="hidden"></span>
                         <span id="modal-runtime" class="hidden"></span>
                     </div>
