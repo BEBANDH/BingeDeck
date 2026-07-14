@@ -620,12 +620,22 @@ function createCardNode(item) {
     card.querySelector('.poster').src = item.poster;
     card.querySelector('.card-title').textContent = item.title;
     card.querySelector('.card-year').textContent = item.year;
-    card.querySelector('.score-val').innerHTML = item.score !== 'N/A' ? `<i class="ph-fill ph-star"></i> IMDb ${item.score}` : '';
-    const typeBadge = card.querySelector('.type-badge');
+    card.querySelector('.score-val').innerHTML = item.score !== 'N/A' ? `<i class="ph-fill ph-star" style="color:gold;"></i> ${item.score}` : '';
+    
+    const typeSelect = card.querySelector('.card-type-select');
+    typeSelect.value = item.type;
+    typeSelect.addEventListener('change', (e) => {
+        e.stopPropagation();
+        item.type = e.target.value;
+        saveData();
+        renderRows();
+    });
+    typeSelect.addEventListener('click', (e) => e.stopPropagation());
+
+    const progressBadge = card.querySelector('.progress-badge');
     if (item.progress && (item.type === 'series' || item.type === 'anime')) {
-        typeBadge.textContent = `S${item.progress.season} E${item.progress.episode}`;
-    } else {
-        typeBadge.textContent = item.type.toUpperCase();
+        progressBadge.textContent = `S${item.progress.season} E${item.progress.episode}`;
+        progressBadge.classList.remove('hidden');
     }
 
     if (item.episodes) {

@@ -141,6 +141,13 @@
         <article class="netflix-card">
             <div class="card-image">
                 <img src="" alt="Poster" class="poster" loading="lazy">
+                <div class="card-top-right">
+                    <select class="card-type-select">
+                        <option value="movie">MOVIE</option>
+                        <option value="series">SERIES</option>
+                        <option value="anime">ANIME</option>
+                    </select>
+                </div>
             </div>
             <div class="card-hover-panel">
                 <div class="hover-actions">
@@ -148,12 +155,14 @@
                     <button class="btn-round btn-watch-toggle" title="Mark Watched"><i class="ph-bold ph-eye"></i></button>
                     <button class="btn-round btn-delete" title="Remove"><i class="ph-bold ph-trash"></i></button>
                 </div>
-                <h3 class="card-title"></h3>
-                <div class="card-meta">
-                    <span class="match-score"><span class="score-val"></span> Match</span>
-                    <span class="card-year border-badge"></span>
-                    <span class="type-badge"></span>
-                    <span class="episodes hidden"></span>
+                <div class="card-content">
+                    <h3 class="card-title"></h3>
+                    <div class="card-meta">
+                        <span class="score-val"></span>
+                        <span class="card-year"></span>
+                        <span class="episodes hidden"></span>
+                        <span class="progress-badge hidden"></span>
+                    </div>
                 </div>
             </div>
         </article>

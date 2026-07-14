@@ -433,10 +433,10 @@ select.sort-dropdown option {
 @media (max-width: 500px) { .netflix-card { flex: 0 0 33.333333%; } } /* 3 per row */
 
 .netflix-card:hover {
-    transform: scale(1.15) translateY(-5%);
+    transform: scale(1.1) translateY(-5%);
     z-index: 10;
-    box-shadow: 0 14px 28px rgba(0,0,0,0.5), 0 10px 10px rgba(0,0,0,0.5);
-    border: 1px solid var(--accent);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .netflix-card:first-child:hover { transform-origin: left center; }
@@ -445,15 +445,49 @@ select.sort-dropdown option {
 .netflix-card .card-image {
     width: 100%;
     height: 100%;
-    border-radius: 4px;
+    border-radius: 6px;
     overflow: hidden;
+    position: relative;
+}
+
+.card-top-right {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.netflix-card:hover .card-top-right {
+    opacity: 1;
+}
+
+.card-type-select {
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.card-type-select:hover {
+    background: rgba(0,0,0,0.9);
+    border-color: var(--accent);
 }
 
 .netflix-card .poster {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: brightness(0.75);
+    filter: brightness(0.85);
     transition: filter 0.3s;
 }
 .netflix-card:hover .poster {
@@ -463,11 +497,13 @@ select.sort-dropdown option {
 .card-hover-panel {
     position: absolute;
     bottom: 0; left: 0; width: 100%;
-    background: linear-gradient(to top, #141414 80%, transparent);
-    padding: 0.75rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, rgba(0,0,0,0.4) 80%, transparent 100%);
+    backdrop-filter: blur(6px);
+    padding: 1rem 0.75rem 0.75rem;
     opacity: 0;
-    transition: opacity 0.3s;
-    border-radius: 0 0 4px 4px;
+    transition: opacity 0.3s, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform: translateY(10px);
+    border-radius: 0 0 6px 6px;
     pointer-events: none;
     display: flex;
     flex-direction: column;
@@ -476,76 +512,92 @@ select.sort-dropdown option {
 
 .netflix-card:hover .card-hover-panel {
     opacity: 1;
+    transform: translateY(0);
     pointer-events: auto;
 }
 
 .hover-actions {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
 .btn-round {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.5);
-    background: rgba(30,30,30,0.8);
+    border: 2px solid rgba(255,255,255,0.4);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    font-size: 0.9rem;
+    transition: all 0.2s;
+    font-size: 1rem;
 }
 
 .btn-round:hover {
     border-color: #fff;
     background: #fff;
     color: #000;
+    transform: scale(1.1);
 }
 
 .btn-round.btn-details {
-    height: calc(100% - 100px);
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.btn-round.btn-details:hover {
+    background: rgba(255,255,255,0.8);
+}
+
+.card-content {
     display: flex;
     flex-direction: column;
+    gap: 4px;
 }
 
 .card-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.2rem;
-    line-height: 1.2;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+    line-height: 1.2;
+    color: #fff;
 }
 
 .card-meta {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-top: 4px;
-    gap: 8px;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #bbb;
+    flex-wrap: wrap;
 }
+
 .card-score {
     color: gold;
     font-weight: bold;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
 }
 
-.match-score { color: #46d369; }
+.match-score { color: #46d369; font-weight: 600; }
 
-.border-badge {
-    border: 1px solid rgba(255,255,255,0.4);
-    padding: 0 0.3rem;
+.progress-badge {
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 4px;
     border-radius: 2px;
+    font-size: 0.65rem;
+    font-weight: bold;
 }
 
 /* Watched State */
