@@ -547,7 +547,12 @@ exportExcelBtn.addEventListener('click', () => {
 function saveData() {
     localStorage.setItem('cinevault_data', JSON.stringify(watchlist));
     if (currentUser && window.db) {
+        console.log("Attempting to sync to Firestore for user:", currentUser.uid);
         db.collection('users').doc(currentUser.uid).set({ watchlist: watchlist })
+            .then(() => {
+                console.log("SUCCESS: Data fully written to Firestore!");
+                showError("Sync Successful! Data is in the cloud."); // Using showError banner for visibility
+            })
             .catch(err => {
                 console.error("Error syncing to cloud: ", err);
                 showError("Cloud Sync Failed: " + err.message);
