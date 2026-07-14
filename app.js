@@ -251,7 +251,7 @@ async function performSearch(query, type) {
         let results = [];
         
         // 1. Check Global Firebase Cache
-        if (window.db) {
+        if (db) {
             try {
                 const docRef = await db.collection('search_cache').doc(cacheKey).get();
                 if (docRef.exists) {
@@ -298,7 +298,7 @@ async function performSearch(query, type) {
         if (results.length > 0) {
             apiCache[cacheKey] = results;
             // 2. Save to Global Firebase Cache
-            if (window.db) {
+            if (db) {
                 db.collection('search_cache').doc(cacheKey).set({ results }).catch(err => console.warn(err));
             }
             renderAutocomplete(results, type);
@@ -546,7 +546,7 @@ exportExcelBtn.addEventListener('click', () => {
 // === UI & STORAGE ===
 function saveData() {
     localStorage.setItem('cinevault_data', JSON.stringify(watchlist));
-    if (currentUser && window.db) {
+    if (currentUser && db) {
         console.log("Attempting to sync to Firestore for user:", currentUser.uid);
         db.collection('users').doc(currentUser.uid).set({ watchlist: watchlist })
             .then(() => {
@@ -930,7 +930,7 @@ async function fetchMovieMetadata(title, type, exactImdbId = null) {
     
     const cacheKey = exactImdbId || title.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + type;
     
-    if (window.db) {
+    if (db) {
         try {
             const docRef = await db.collection('movie_cache').doc(cacheKey).get();
             if (docRef.exists) return docRef.data();
@@ -952,7 +952,7 @@ async function fetchMovieMetadata(title, type, exactImdbId = null) {
         totalSeasons: (resolvedType === 'series' || resolvedType === 'anime') ? parseInt(data.totalSeasons) : null, actualType: resolvedType
     };
 
-    if (window.db) {
+    if (db) {
         if (data.imdbID) db.collection('movie_cache').doc(data.imdbID).set(result).catch(e=>console.warn(e));
         if (!exactImdbId) db.collection('movie_cache').doc(cacheKey).set(result).catch(e=>console.warn(e));
     }
@@ -962,7 +962,7 @@ async function fetchMovieMetadata(title, type, exactImdbId = null) {
 
 async function fetchAnimeTotalEpisodes(title) {
     const cacheKey = 'anime_eps_' + title.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (window.db) {
+    if (db) {
         try {
             const docRef = await db.collection('movie_cache').doc(cacheKey).get();
             if (docRef.exists) return docRef.data().episodes;
