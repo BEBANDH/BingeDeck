@@ -548,7 +548,10 @@ function saveData() {
     localStorage.setItem('cinevault_data', JSON.stringify(watchlist));
     if (currentUser && window.db) {
         db.collection('users').doc(currentUser.uid).set({ watchlist: watchlist })
-            .catch(err => console.error("Error syncing to cloud: ", err));
+            .catch(err => {
+                console.error("Error syncing to cloud: ", err);
+                showError("Cloud Sync Failed: " + err.message);
+            });
     }
 }
 
@@ -1004,6 +1007,7 @@ if (auth) {
                 renderRows();
             } catch (err) {
                 console.error("Error fetching cloud data:", err);
+                showError("Cloud Fetch Failed: " + err.message + ". Please check Firestore Security Rules.");
             }
         } else {
             currentUser = null;
